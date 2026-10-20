@@ -20,6 +20,10 @@ All data lives in [`src/data/kpis.json`](src/data/kpis.json). To publish a new v
 
 The in-page "Update KPI" editor saves to the viewer's own browser only. It is for drafting, not publishing.
 
+## Publishing from the laptop
+
+`bash publish.sh "What changed"` runs the tests, commits, pulls any edits made on github.com, and pushes. The site redeploys in about two minutes. `bash publish.sh --pull` only brings github.com edits down to the laptop.
+
 ## Run locally
 
 ```bash
