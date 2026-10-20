@@ -1,0 +1,38 @@
+@import "tailwindcss";
+
+@theme {
+  --color-emerald-brand: #065f46;
+  --color-emerald-deep: #04432f;
+  --color-saffron: #d97706;
+  --color-saffron-soft: #fef3c7;
+  --font-cairo: "Cairo", system-ui, sans-serif;
+  --font-inter: "Inter", system-ui, sans-serif;
+}
+
+html[lang="ar"] body { font-family: var(--font-cairo); }
+html[lang="en"] body { font-family: var(--font-inter); }
+
+body {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+/* Zellige-inspired 8-point star pattern for the header */
+.zellige {
+  background-color: var(--color-emerald-brand);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='48' viewBox='0 0 48 48'%3E%3Cg fill='none' stroke='%23d97706' stroke-opacity='.22' stroke-width='1'%3E%3Crect x='14' y='14' width='20' height='20'/%3E%3Crect x='14' y='14' width='20' height='20' transform='rotate(45 24 24)'/%3E%3Ccircle cx='24' cy='24' r='4'/%3E%3C/g%3E%3C/svg%3E");
+}
+
+.bar-fill { transition: width 600ms cubic-bezier(.2,.8,.2,1); }
+
+.print-only { display: none; }
+
+@media print {
+  @page { size: A4 landscape; margin: 8mm; }
+  body { background: #fff; }
+  .screen-only { display: none !important; }
+  .print-only { display: block !important; }
+  .print-only table { font-size: 7.5pt; }
+  .print-only td, .print-only th { padding: 2px 4px; }
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
