@@ -5,6 +5,9 @@ import { changeSinceLaunch, progressPct, valueAtPct, youtubeUrl } from './lib/pr
 const VIDEO_ID = 'iTP6pC-r9_o';
 const STORE_KEY = 'govtracker.records.v1';
 const LANG_KEY = 'govtracker.lang';
+// The editor only exists in local dev (start.bat). The published site is read-only:
+// public numbers come from src/data/kpis.json alone, which only the repo owner can change.
+const CAN_EDIT = import.meta.env.DEV;
 
 const T = {
   ar: {
@@ -56,7 +59,10 @@ const T = {
     backwards: 'تراجع',
     direction: { increase: 'مؤشر تصاعدي', decrease: 'مؤشر تنازلي' },
     printedView: 'العرض',
-    footer: 'الأرقام والطوابع الزمنية كما وردت في ملف المشروع. تحقق من المصادر الرسمية قبل النشر. التحديثات محفوظة في هذا المتصفح فقط.',
+    footer: 'الأهداف مأخوذة من البرنامج الحكومي المقدم أمام البرلمان. يتم تحديث القيم الحالية من مصادر رسمية.',
+    footerLocal: 'وضع التحرير المحلي: التحديثات محفوظة في هذا المتصفح فقط، ولا تظهر على الموقع المنشور.',
+    official: 'القيم الرسمية',
+    officialNote: 'القيم الحالية المنشورة، محدّثة من مصادر رسمية.',
     exportBtn: 'تصدير البيانات',
     resetAll: 'مسح كل التحديثات',
     confirmReset: 'مسح كل القيم والملاحظات المسجلة في هذا المتصفح؟',
@@ -110,7 +116,10 @@ const T = {
     backwards: 'Going backwards',
     direction: { increase: 'Higher is better', decrease: 'Lower is better' },
     printedView: 'View',
-    footer: 'Figures and timestamps as provided in the project brief. Verify against official sources before publishing. Updates are saved in this browser only.',
+    footer: 'Targets are taken from the government program presented to Parliament. Current values are updated from official sources.',
+    footerLocal: 'Local editing mode: updates are saved in this browser only and do not appear on the published site.',
+    official: 'Official values',
+    officialNote: 'Published current values, updated from official sources.',
     exportBtn: 'Export data',
     resetAll: 'Clear all updates',
     confirmReset: 'Clear every recorded value and note saved in this browser?',
@@ -168,7 +177,7 @@ export default function App() {
   const [mode, setMode] = useState('midterm'); // launch | midterm | end
   const [midSource, setMidSource] = useState('recorded'); // recorded | simulated
   const [simPct, setSimPct] = useState(40);
-  const [records, setRecords] = useState(() => loadJSON(STORE_KEY, {}));
+  const [records, setRecords] = useState(() => (CAN_EDIT ? loadJSON(STORE_KEY, {}) : {}));
   const [pillar, setPillar] = useState('all');
   const [editing, setEditing] = useState(null);
 
@@ -182,7 +191,11 @@ export default function App() {
     saveJSON(LANG_KEY, lang);
   }, [lang, isAr]);
 
-  useEffect(() => saveJSON(STORE_KEY, records), [records]);
+  useEffect(() => {
+    if (CAN_EDIT) saveJSON(STORE_KEY, records);
+  }, [records]);
+
+  const recordedLabel = CAN_EDIT ? t.recorded : t.official;
 
   const valueFor = (k) => {
     if (mode === 'launch') return k.baseline;
@@ -218,7 +231,7 @@ export default function App() {
   });
 
   const modeLabel =
-    mode === 'launch' ? t.launch : mode === 'end' ? t.end : `${t.midterm} · ${midSource === 'simulated' ? `${t.simulated} ${simPct}%` : t.recorded}`;
+    mode === 'launch' ? t.launch : mode === 'end' ? t.end : `${t.midterm} · ${midSource === 'simulated' ? `${t.simulated} ${simPct}%` : recordedLabel}`;
 
   const saveRecord = (id, current, notes) => {
     setRecords((r) => ({ ...r, [id]: { current, notes, updatedAt: new Date().toISOString() } }));
@@ -320,14 +333,16 @@ export default function App() {
           <section className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <h2 className="text-lg font-bold text-emerald-brand">⏳ {t.simulator}</h2>
-              <div className="flex flex-wrap gap-2">
-                <button onClick={exportData} className="rounded-lg px-3 py-1.5 text-xs font-semibold text-slate-600 ring-1 ring-slate-300 hover:bg-slate-50">
-                  ⬇ {t.exportBtn}
-                </button>
-                <button onClick={clearAll} className="rounded-lg px-3 py-1.5 text-xs font-semibold text-red-700 ring-1 ring-red-200 hover:bg-red-50">
-                  {t.resetAll}
-                </button>
-              </div>
+              {CAN_EDIT && (
+                <div className="flex flex-wrap gap-2">
+                  <button onClick={exportData} className="rounded-lg px-3 py-1.5 text-xs font-semibold text-slate-600 ring-1 ring-slate-300 hover:bg-slate-50">
+                    ⬇ {t.exportBtn}
+                  </button>
+                  <button onClick={clearAll} className="rounded-lg px-3 py-1.5 text-xs font-semibold text-red-700 ring-1 ring-red-200 hover:bg-red-50">
+                    {t.resetAll}
+                  </button>
+                </div>
+              )}
             </div>
             <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
               {['launch', 'midterm', 'end'].map((m) => (
@@ -356,7 +371,7 @@ export default function App() {
                         midSource === s ? 'bg-saffron text-white' : 'bg-white text-amber-800'
                       }`}
                     >
-                      {t[s]}
+                      {s === 'recorded' ? recordedLabel : t[s]}
                     </button>
                   ))}
                 </div>
@@ -377,7 +392,7 @@ export default function App() {
               </div>
             )}
             <p className="mt-2 text-sm text-slate-500">
-              {mode === 'launch' ? t.launchNote : mode === 'end' ? t.endNote : midSource === 'simulated' ? t.simNote : t.recordedNote}
+              {mode === 'launch' ? t.launchNote : mode === 'end' ? t.endNote : midSource === 'simulated' ? t.simNote : CAN_EDIT ? t.recordedNote : t.officialNote}
             </p>
           </section>
 
@@ -399,12 +414,12 @@ export default function App() {
           {/* Cards */}
           <section className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {visible.map((k) => (
-              <KpiCard key={k.id} k={k} t={t} isAr={isAr} record={records[k.id]} onOpen={() => setEditing(k.id)} />
+              <KpiCard key={k.id} k={k} t={t} isAr={isAr} record={records[k.id]} onOpen={CAN_EDIT ? () => setEditing(k.id) : null} />
             ))}
           </section>
 
           <footer className="mt-10 border-t border-slate-200 pt-4 text-xs text-slate-500">
-            {t.footer}{' '}
+            {t.footer} {CAN_EDIT && <b className="text-saffron">{t.footerLocal}</b>}{' '}
             <a className="text-emerald-brand underline" href={`https://www.youtube.com/watch?v=${VIDEO_ID}`} target="_blank" rel="noreferrer">
               youtube.com/watch?v={VIDEO_ID}
             </a>
@@ -447,8 +462,10 @@ function KpiCard({ k, t, isAr, record, onOpen }) {
   const chg = changeSinceLaunch(k, k.current);
   return (
     <article
-      onClick={onOpen}
-      className="group flex cursor-pointer flex-col rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-0.5 hover:shadow-md hover:ring-emerald-300"
+      onClick={onOpen || undefined}
+      className={`group flex flex-col rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200 transition ${
+        onOpen ? 'cursor-pointer hover:-translate-y-0.5 hover:shadow-md hover:ring-emerald-300' : ''
+      }`}
     >
       <div className="flex items-start justify-between gap-2">
         <span className="rounded-md bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-brand">
@@ -503,15 +520,17 @@ function KpiCard({ k, t, isAr, record, onOpen }) {
           {t.deadline}: <b className="text-slate-700"><bdi dir="ltr">{k.deadline}</bdi></b>
           {record?.notes ? <span className="ms-2 text-saffron">📝 {t.hasNotes}</span> : null}
         </span>
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onOpen();
-          }}
-          className="ms-auto rounded-lg px-2.5 py-1 font-semibold text-emerald-brand ring-1 ring-emerald-200 hover:bg-emerald-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-saffron"
-        >
-          ✎ {t.edit}
-        </button>
+        {onOpen && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onOpen();
+            }}
+            className="ms-auto rounded-lg px-2.5 py-1 font-semibold text-emerald-brand ring-1 ring-emerald-200 hover:bg-emerald-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-saffron"
+          >
+            ✎ {t.edit}
+          </button>
+        )}
         <a
           href={youtubeUrl(VIDEO_ID, k.seconds)}
           target="_blank"
