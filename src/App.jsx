@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import KPIS from './data/kpis.json';
-import { changeSinceLaunch, progressPct, valueAtPct, youtubeUrl } from './lib/progress.js';
+import { changeSinceLaunch, progressPct, youtubeUrl } from './lib/progress.js';
 
 const VIDEO_ID = 'iTP6pC-r9_o';
 const STORE_KEY = 'govtracker.records.v1';
@@ -20,17 +20,7 @@ const T = {
     achieved: 'منجز',
     inProgress: 'قيد الإنجاز',
     notStarted: 'عند خط الأساس',
-    simulator: 'محاكي المراحل',
-    launch: 'الانطلاق (أكتوبر 2026)',
-    midterm: 'منتصف الولاية (2028)',
-    end: 'نهاية الولاية (2031)',
-    recorded: 'القيم المسجلة',
-    simulated: 'محاكاة',
-    simPace: 'نسبة التقدم المحاكاة',
-    launchNote: 'وضع الانطلاق: كل القيم الحالية = خط الأساس، أي 0% تقدم.',
-    endNote: 'نهاية الولاية: كل التعهدات محققة بالكامل (100%).',
-    recordedNote: 'اضغط على أي بطاقة لتحديث القيمة الحالية وإضافة ملاحظات التحقق.',
-    simNote: 'محاكاة: كل المؤشرات على نفس النسبة. القيم المسجلة لا تتغير.',
+    recordedNote: 'مسودات محلية: اضغط على بطاقة لتجربة قيمة. للنشر، غيّر "current" في src/data/kpis.json.',
     all: 'الكل',
     print: 'نسخة الطباعة',
     baseline: 'خط الأساس',
@@ -46,7 +36,7 @@ const T = {
     notesPh: 'المصدر، التاريخ، رابط الوثيقة الرسمية…',
     save: 'حفظ',
     cancel: 'إلغاء',
-    reset: 'إرجاع إلى خط الأساس',
+    reset: 'إلغاء المسودة',
     edit: 'تحديث المؤشر',
     quote: 'الاقتباس من الخطاب',
     updated: 'آخر تحديث',
@@ -58,11 +48,9 @@ const T = {
     pts: 'نقطة',
     backwards: 'تراجع',
     direction: { increase: 'مؤشر تصاعدي', decrease: 'مؤشر تنازلي' },
-    printedView: 'العرض',
+    printedOn: 'تاريخ الطباعة',
     footer: 'الأهداف مأخوذة من البرنامج الحكومي المقدم أمام البرلمان. يتم تحديث القيم الحالية من مصادر رسمية.',
     footerLocal: 'وضع التحرير المحلي: التحديثات محفوظة في هذا المتصفح فقط، ولا تظهر على الموقع المنشور.',
-    official: 'القيم الرسمية',
-    officialNote: 'القيم الحالية المنشورة، محدّثة من مصادر رسمية.',
     exportBtn: 'تصدير البيانات',
     resetAll: 'مسح كل التحديثات',
     confirmReset: 'مسح كل القيم والملاحظات المسجلة في هذا المتصفح؟',
@@ -77,17 +65,7 @@ const T = {
     achieved: 'Achieved',
     inProgress: 'In progress',
     notStarted: 'At baseline',
-    simulator: 'Milestone simulator',
-    launch: 'Launch (Oct 2026)',
-    midterm: 'Mid-Term Check (2028)',
-    end: 'End of Mandate (2031)',
-    recorded: 'Recorded values',
-    simulated: 'Simulate',
-    simPace: 'Simulated progress',
-    launchNote: 'Launch view: every current value = baseline, so every bar reads 0%.',
-    endNote: 'End of mandate: every commitment fully delivered (100%).',
-    recordedNote: 'Click any card to update its current value and add verification notes.',
-    simNote: 'Simulation: every KPI at the same pace. Your recorded values are untouched.',
+    recordedNote: 'Local drafts: click a card to try a value. To publish, change "current" in src/data/kpis.json.',
     all: 'All',
     print: 'One-pager / PDF',
     baseline: 'Baseline',
@@ -103,7 +81,7 @@ const T = {
     notesPh: 'Source, date, link to the official document…',
     save: 'Save',
     cancel: 'Cancel',
-    reset: 'Reset to baseline',
+    reset: 'Discard draft',
     edit: 'Update KPI',
     quote: 'Quote from the speech (Arabic original)',
     updated: 'Last updated',
@@ -115,11 +93,9 @@ const T = {
     pts: 'pts',
     backwards: 'Going backwards',
     direction: { increase: 'Higher is better', decrease: 'Lower is better' },
-    printedView: 'View',
+    printedOn: 'Printed',
     footer: 'Targets are taken from the government program presented to Parliament. Current values are updated from official sources.',
     footerLocal: 'Local editing mode: updates are saved in this browser only and do not appear on the published site.',
-    official: 'Official values',
-    officialNote: 'Published current values, updated from official sources.',
     exportBtn: 'Export data',
     resetAll: 'Clear all updates',
     confirmReset: 'Clear every recorded value and note saved in this browser?',
@@ -174,9 +150,6 @@ export default function App() {
   const [lang, setLang] = useState(() => {
     try { return localStorage.getItem(LANG_KEY) || 'ar'; } catch { return 'ar'; }
   });
-  const [mode, setMode] = useState('midterm'); // launch | midterm | end
-  const [midSource, setMidSource] = useState('recorded'); // recorded | simulated
-  const [simPct, setSimPct] = useState(40);
   const [records, setRecords] = useState(() => (CAN_EDIT ? loadJSON(STORE_KEY, {}) : {}));
   const [pillar, setPillar] = useState('all');
   const [editing, setEditing] = useState(null);
@@ -195,14 +168,8 @@ export default function App() {
     if (CAN_EDIT) saveJSON(STORE_KEY, records);
   }, [records]);
 
-  const recordedLabel = CAN_EDIT ? t.recorded : t.official;
-
-  const valueFor = (k) => {
-    if (mode === 'launch') return k.baseline;
-    if (mode === 'end') return k.target;
-    if (midSource === 'simulated') return valueAtPct(k, simPct);
-    return records[k.id]?.current ?? k.baseline;
-  };
+  // Published value = `current` in kpis.json. Local dev drafts (CAN_EDIT) override it in this browser only.
+  const valueFor = (k) => records[k.id]?.current ?? k.current;
 
   const rows = useMemo(
     () =>
@@ -212,7 +179,7 @@ export default function App() {
         return { ...k, current, pct, status: statusOf(pct) };
       }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [mode, midSource, simPct, records]
+    [records]
   );
 
   const pillars = useMemo(() => {
@@ -230,13 +197,8 @@ export default function App() {
     return { ...p, n: rs.length, pct: rs.reduce((s, r) => s + r.pct, 0) / rs.length };
   });
 
-  const modeLabel =
-    mode === 'launch' ? t.launch : mode === 'end' ? t.end : `${t.midterm} · ${midSource === 'simulated' ? `${t.simulated} ${simPct}%` : recordedLabel}`;
-
   const saveRecord = (id, current, notes) => {
     setRecords((r) => ({ ...r, [id]: { current, notes, updatedAt: new Date().toISOString() } }));
-    setMode('midterm');
-    setMidSource('recorded');
     setEditing(null);
   };
 
@@ -252,7 +214,7 @@ export default function App() {
   const exportData = () => {
     const out = KPIS.map((k) => ({
       ...k,
-      current: records[k.id]?.current ?? k.baseline,
+      current: records[k.id]?.current ?? k.current,
       notes: records[k.id]?.notes ?? '',
       updatedAt: records[k.id]?.updatedAt ?? null,
     }));
@@ -309,7 +271,7 @@ export default function App() {
                   <div className="bar-fill h-full rounded-full bg-saffron" style={{ width: `${overall}%` }} />
                 </div>
                 <div className="mt-2 text-xs text-emerald-100/80">
-                  {KPIS.length} {t.commitments} · {modeLabel}
+                  {KPIS.length} {t.commitments}
                 </div>
               </div>
               {[
@@ -329,75 +291,23 @@ export default function App() {
         </header>
 
         <main className="mx-auto max-w-7xl px-4 py-6">
-          {/* Simulator */}
-          <section className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <h2 className="text-lg font-bold text-emerald-brand">⏳ {t.simulator}</h2>
-              {CAN_EDIT && (
-                <div className="flex flex-wrap gap-2">
-                  <button onClick={exportData} className="rounded-lg px-3 py-1.5 text-xs font-semibold text-slate-600 ring-1 ring-slate-300 hover:bg-slate-50">
-                    ⬇ {t.exportBtn}
-                  </button>
-                  <button onClick={clearAll} className="rounded-lg px-3 py-1.5 text-xs font-semibold text-red-700 ring-1 ring-red-200 hover:bg-red-50">
-                    {t.resetAll}
-                  </button>
-                </div>
-              )}
-            </div>
-            <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
-              {['launch', 'midterm', 'end'].map((m) => (
-                <button
-                  key={m}
-                  onClick={() => setMode(m)}
-                  className={`rounded-xl px-4 py-3 text-sm font-bold transition ${
-                    mode === m
-                      ? 'bg-emerald-brand text-white shadow'
-                      : 'bg-slate-50 text-slate-700 ring-1 ring-slate-200 hover:bg-slate-100'
-                  }`}
-                >
-                  {t[m]}
+          {/* Local editing toolbar — never in the published build */}
+          {CAN_EDIT && (
+            <section className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-saffron-soft/60 p-4 ring-1 ring-amber-200">
+              <p className="text-sm text-amber-900">{t.recordedNote}</p>
+              <div className="flex flex-wrap gap-2">
+                <button onClick={exportData} className="rounded-lg bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 ring-1 ring-slate-300 hover:bg-slate-50">
+                  ⬇ {t.exportBtn}
                 </button>
-              ))}
-            </div>
-
-            {mode === 'midterm' && (
-              <div className="mt-3 flex flex-wrap items-center gap-3 rounded-xl bg-saffron-soft/60 p-3">
-                <div className="inline-flex overflow-hidden rounded-lg ring-1 ring-amber-300">
-                  {['recorded', 'simulated'].map((s) => (
-                    <button
-                      key={s}
-                      onClick={() => setMidSource(s)}
-                      className={`px-3 py-1.5 text-sm font-semibold ${
-                        midSource === s ? 'bg-saffron text-white' : 'bg-white text-amber-800'
-                      }`}
-                    >
-                      {s === 'recorded' ? recordedLabel : t[s]}
-                    </button>
-                  ))}
-                </div>
-                {midSource === 'simulated' && (
-                  <label className="flex flex-1 items-center gap-3 text-sm text-amber-900">
-                    <span className="whitespace-nowrap">{t.simPace}</span>
-                    <input
-                      type="range"
-                      min="0"
-                      max="100"
-                      value={simPct}
-                      onChange={(e) => setSimPct(Number(e.target.value))}
-                      className="w-full accent-[#d97706]"
-                    />
-                    <span className="w-12 font-bold tabular-nums">{simPct}%</span>
-                  </label>
-                )}
+                <button onClick={clearAll} className="rounded-lg bg-white px-3 py-1.5 text-xs font-semibold text-red-700 ring-1 ring-red-200 hover:bg-red-50">
+                  {t.resetAll}
+                </button>
               </div>
-            )}
-            <p className="mt-2 text-sm text-slate-500">
-              {mode === 'launch' ? t.launchNote : mode === 'end' ? t.endNote : midSource === 'simulated' ? t.simNote : CAN_EDIT ? t.recordedNote : t.officialNote}
-            </p>
-          </section>
+            </section>
+          )}
 
           {/* Pillar filter */}
-          <nav className="mt-6 flex gap-2 overflow-x-auto pb-2">
+          <nav className="flex gap-2 overflow-x-auto pb-2">
             <PillarChip active={pillar === 'all'} onClick={() => setPillar('all')} label={t.all} pct={overall} n={KPIS.length} />
             {pillarStats.map((p) => (
               <PillarChip
@@ -439,7 +349,7 @@ export default function App() {
         )}
       </div>
 
-      <PrintView rows={rows} t={t} isAr={isAr} overall={overall} modeLabel={modeLabel} />
+      <PrintView rows={rows} t={t} isAr={isAr} overall={overall} />
     </>
   );
 }
@@ -662,7 +572,7 @@ function Editor({ k, record, t, isAr, onClose, onSave, onReset }) {
   );
 }
 
-function PrintView({ rows, t, isAr, overall, modeLabel }) {
+function PrintView({ rows, t, isAr, overall }) {
   return (
     <div className="print-only p-2 text-slate-900">
       <div className="flex items-end justify-between border-b-2 border-emerald-brand pb-1">
@@ -677,7 +587,7 @@ function PrintView({ rows, t, isAr, overall, modeLabel }) {
             {t.overall}: <b>{overall.toFixed(1)}%</b>
           </div>
           <div>
-            {t.printedView}: {modeLabel} · {new Date().toLocaleDateString(isAr ? 'ar-MA' : 'en-CA')}
+            {t.printedOn}: {new Date().toLocaleDateString(isAr ? 'ar-MA' : 'en-CA')}
           </div>
         </div>
       </div>

@@ -27,12 +27,6 @@ export function changeSinceLaunch({ baseline, target, direction }, current) {
   return { delivered, promised, backwards };
 }
 
-// Value of a KPI after `pct`% of the road from baseline to target (used by the simulator).
-export function valueAtPct({ baseline, target }, pct) {
-  const v = baseline + ((target - baseline) * pct) / 100;
-  return Math.round(v * 1000) / 1000;
-}
-
 export function youtubeUrl(videoId, seconds) {
   const m = Math.floor(seconds / 60);
   const s = seconds % 60;

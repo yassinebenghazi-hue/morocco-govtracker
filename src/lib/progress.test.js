@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { changeSinceLaunch, progressPct, valueAtPct, youtubeUrl } from './progress.js';
+import { changeSinceLaunch, progressPct, youtubeUrl } from './progress.js';
 
 const kpis = JSON.parse(readFileSync(new URL('../data/kpis.json', import.meta.url), 'utf8'));
 const byId = Object.fromEntries(kpis.map((k) => [k.id, k]));
@@ -38,16 +38,20 @@ test('clamped to 0..100 both ways', () => {
   assert.equal(progressPct(byId['kpi-24'], 55), 100);
 });
 
-test('launch = 0% and end of mandate = 100% for every KPI', () => {
+// Guards the deploy: a typo in kpis.json ("current": "2,000") fails the build instead of going live.
+test('every KPI has numeric baseline, target and current', () => {
   for (const k of kpis) {
-    assert.equal(progressPct(k, k.baseline), 0, k.id);
-    assert.equal(progressPct(k, k.target), 100, k.id);
+    for (const f of ['baseline', 'target', 'current']) {
+      assert.equal(typeof k[f], 'number', `${k.id}.${f}`);
+      assert.ok(Number.isFinite(k[f]), `${k.id}.${f}`);
+    }
   }
 });
 
-test('simulator value round-trips to its percentage', () => {
+test('baseline = 0% and target = 100% for every KPI', () => {
   for (const k of kpis) {
-    assert.ok(Math.abs(progressPct(k, valueAtPct(k, 40)) - 40) < 0.5, k.id);
+    assert.equal(progressPct(k, k.baseline), 0, k.id);
+    assert.equal(progressPct(k, k.target), 100, k.id);
   }
 });
 
